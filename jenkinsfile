@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/your-username/jenkins-java-pipeline.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t priyadharshini030722/java-pipeline-demo .'
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([string(credentialsId: 'dockerhub-pass', variable: 'DOCKER_HUB_PASS')]) {
+                    sh """
+                    echo $DOCKER_HUB_PASS | docker login -u priyadharshini030722 --password-stdin
+                    docker push priyadharshini030722/java-pipeline-demo
+                    """
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(['ec2-ssh-key']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@<EC2-IP> "docker pull priyadharshini030722/java-pipeline-demo && docker run -d -p 8080:8080 priyadharshini030722/java-pipeline-demo"'
+                }
+            }
+        }
+    }
+}
